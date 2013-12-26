@@ -1,0 +1,15 @@
+global stats
+probe syscall.open {
+    stats[execname(), pid()] <<< 1
+}
+probe timer.ms(10000) {
+    printf("\n%s\n", ctime(gettimeofday_s()));
+    printf("%-20s %-20s %-10s\n", "Process Name", "Process ID", "Counts")
+    foreach ([execname, pid] in stats- limit 5) {
+        printf("%-20s %-20d %-d\n", execname, pid, @count(stats[execname, pid]))
+    }
+    delete stats
+}
+probe end {
+    delete stats
+}
