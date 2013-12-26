@@ -1,0 +1,30 @@
+/*
+ * Problem Description:
+ * 
+ *  Write a script that experimentally measures the speed of the get_cycles()
+ *  counter on each processor.
+ *
+ * Analysis:
+ *
+ *  The script given below assumes that the handlers for the "session begin"
+ *  and timer events will be carried on the same processor.
+ *  
+ *  How to set the cpu affinity of the systemtap session should be investigated.
+ *
+ */
+global times
+function hertz(delta, secs) {
+    mhz = delta/secs/1000000
+    khz = delta/secs/1000 - mhz*1000
+    return sprintf("%d.%dMHz", mhz, khz)
+}
+probe begin {
+    times[cpu()] <<< get_cycles()
+}
+probe timer.sec(10) {
+    times[cpu()] <<< get_cycles()
+    foreach (cpu+ in times) {
+        printf("CPU %d: %s\n", cpu, hertz(@max(times[cpu]) - @min(times[cpu]), 10))
+    }
+    exit()
+}
