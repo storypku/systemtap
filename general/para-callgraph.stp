@@ -1,0 +1,36 @@
+#! /usr/bin/env stap
+/*
+ *  general/para-callgraph.stp - Callgraph Tracing with Arguments
+ *  keywords: TRACE CALLGRAPH 
+ *  Print a timed per-thread callgraph, complete with function parameters
+ *  and return values. The first parameter names the function probe points
+ *  to trace. The optional second parameter names the probe points for
+ *  trigger functions,which acts to enable tracing for only those functions
+ *  that occur while the current thread is nested within the trigger.
+ *
+ * Sample use:
+ * # stap para-callgraph.stp 'kernel.function("*@fs/proc*.c")' \
+ *   'kernel.function("vfs_read")' -c "cat /proc/sys/vm/* || true"
+ */
+function trace(entry_p, extra) {
+  %( $# > 1 %? if (tid() in trace) %)
+  printf("%s%s%s %s\n",
+         thread_indent (entry_p),
+         (entry_p>0?"->":"<-"),
+         ppfunc (),
+         extra)
+}
+
+
+%( $# > 1 %?    /* conditional compilation: see section 5.8, langref */
+global trace
+probe $2.call {
+  trace[tid()] = 1
+}
+probe $2.return {
+  delete trace[tid()]
+}
+%)
+
+probe $1.call   { trace(1, $$parms) }
+probe $1.return { trace(-1, $$return) }
